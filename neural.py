@@ -1,63 +1,84 @@
 import numpy as np
 
-data = np.array([ [0,0,1],[0,1,1],[1,0,1],[1,1,1] ]).T
+# TRAINING DATA ---------------------------------------------------------------------
+data = np.array([[0,1],[1,0],[1,1],[2,0],[2,1],[1,5],[1,3],[5,2],[0,5],[3,2]]).T
 
-# Classificaton
-t = np.array([[0,1,1,0]])
+# Classificaton (expected results)
+t = np.array([1,1,1,2,2,5,3,5,5,3])
 
-# Sieze of each layers, layersizes[-1] = 1
-layersizes = np.array([np.shape(data)[0],4,1])
+# PARAMETERS -----------------------------------------------------------------------
+
+# Number of iterations
+niter = 100000
+
+# Learning rate
+rate=1
+
+# Number of classes
+k = 6
+
+# Size of each layers
+layersizes = np.array([np.shape(data)[0],7,k])
+
+#------------------------------------------------------------------------------------
+
 nlayers = len(layersizes) - 1
+ndata =  np.shape(data)[1]
 
-# Data
+# Weights and bias initialization
+W = []
+B = []
+for i in range(nlayers):
+     W.append(2*np.random.random((layersizes[i+1],layersizes[i])) - 1)
+     B.append((2*np.random.random((layersizes[i+1],1))-1).dot(np.ones((1,ndata))))
+
+
+# Learning iterations ---------------------------------------------------------------
+
+tn = np.zeros((k,ndata))
+for i in range(ndata):
+    tn[t[i],i]=1
+
+
+# X[l] is the output of layer l
 X = [None]*(nlayers+1)
 X[0] = data
 
-# Weights initialization
-W = []
+# E[-(l+1)] is the part of the gradient that is recurent
 E = [None]*(nlayers)
-# for i in range(nlayers):
-#     W.append(2*np.random.random((layersizes[i+1],layersizes[i])) - 1)
 
-W = [np.array([[-0.91284062, -0.67858789, -0.21414769],
-               [-0.64454472,  0.07708981, -0.87895268],
-               [-0.66035884,  0.78464445, -0.01624236],
-               [-0.14250009,  0.78994748, -0.3534058 ]]),
-     np.array([[-0.26415044,  0.3119735 , -0.47330244,  0.85508137]])]
-
-print(W)
-
-# Learning iterations
-rate=1
-for i in range(2):
-    # Propagation using f(u)=1/(1-exp(-u))
+for i in range(niter):
+    
+    # Propagation using f(u)=1/(1-exp(-u)) (sigmoid)
     for j in range(nlayers):
-        X[j+1] = 1/(1 + np.exp(-W[j].dot(X[j])))
+        X[j+1] = 1/(1 + np.exp(-(W[j].dot(X[j])+B[j])))
 
-    print('X ==============================================')
-    print(X[0].T)
-    print(X[1].T)
-    print(X[2].T)
-    # Back propagation using f'(u) = f(u)**2 - f(u) (in this case)
-    E[0] = ((t-X[-1])*(X[-1]-X[-1]**2)).T
-    # W[-1] += rate*E[0].T.dot(X[-2].T) # New method?
+    # Normalize output to get probability of each class
+    X[-1] = X[-1]/np.sum(X[-1],0)
+
+    # Back propagation using f'(u) = f(u)**2 - f(u) (for the sigmoid)
+    E[0] = ((tn-X[-1])*(X[-1]-X[-1]**2)).T
+
     for j in range(nlayers-1):
         E[j+1] = E[j].dot(W[-(j+1)])*(X[-(j+2)]-X[-(j+2)]**2).T
-        # W[-(j+2)] += E[j+1].T.dot(X[-(j+3)].T) # New method?
 
     for j in range(nlayers):
         W[-(j+1)] += rate*E[j].T.dot(X[-(j+2)].T)
-
-    print('E ++++++++++++++++++++++++++++++++++++++++++++++')
-    print(E[0])
-    print(E[1])
-        
-    print('WEIGHTS -----------------------------------------')
-    print(W[0].T)
-    print(W[1].T)
+        B[-(j+1)] += rate*E[j].T.dot(np.ones((ndata,ndata)))
     
+# Try the network:
+print(X[-1])
+for i in range(ndata):
+    classe = np.argsort(X[-1][:,i])
+    classe = classe[::-1]
+    prob = X[-1][classe,i]*100
+    print("class".rjust(5), "confidence".rjust(12), "expected:",t[i])
+    for j in range(k):
+        print('{0:5d} {1:12.3f}'.format(int(classe[j]),prob[j]))
+
+print("Final mean square error", np.sum((tn - X[-1])**2)/ndata)
 
 
-print(W)
+
 
 
