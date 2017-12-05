@@ -97,7 +97,7 @@ def read_data_emotions(folder, frac_test, frac_valid):
 
     return (data, t, tdata, tt, vdata, vt)
 
-def read_data_people(folder, frac_test, frac_valid):
+def read_data_people(folder, frac_test, frac_valid,sg):
     data = []
     tdata = []
     vdata = []
@@ -106,9 +106,14 @@ def read_data_people(folder, frac_test, frac_valid):
     vt = np.array([],np.int64)
 
     peoplelist = glob.glob(folder + '/*/')
+
+    if sg:
+        face = 'sunglasses'
+    else:
+        face = 'open'
         
     for j in range(len(peoplelist)):
-        filelist = glob.glob(peoplelist[j] + '/*_2.pgm')
+        filelist = glob.glob(peoplelist[j] + '/*' + face + '_2.pgm')
         alldata = read_pgm_p5_list(filelist)
         data.append(alldata)
         t = np.append(t,np.ones(len(filelist),np.int64)*j)
@@ -181,7 +186,7 @@ def use_net(data,W,B):
 
     return X[-1]/np.sum(X[-1],0)
 
-def train_net(data,t,vdata,vt,tdata,tt,layersizes,rate,lam,niter):
+def train_net(data,t,vdata,vt,layersizes,rate,lam,niter):
 
     plt.ion()
     
@@ -223,7 +228,6 @@ def train_net(data,t,vdata,vt,tdata,tt,layersizes,rate,lam,niter):
     grad = []
     perf_list = np.array([])
     vperf_list = np.array([])
-    tperf_list = np.array([])
     mse_list = np.array([])
     mseprev = 2
     mse = 1
@@ -253,19 +257,18 @@ def train_net(data,t,vdata,vt,tdata,tt,layersizes,rate,lam,niter):
         if i%10==0:
             wsq = np.sum([np.sum(w**2) for w in W])
             err = mse + lam*wsq
+
+            # Assesssing the performance of the net on the validation data
             vX = use_net(vdata,W,B)
-            tX = use_net(tdata,W,B)
             vperf = calc_performance(vX,vt)
             perf = calc_performance(X[-1]/np.sum(X[-1],0),t)
-            tperf = calc_performance(tX,tt)
             perf_list = np.append(perf_list, perf)
             vperf_list = np.append(vperf_list, vperf)
-            tperf_list = np.append(tperf_list, tperf)
-            #mse_list = np.append(mse_list, mse)
+
             x = range(len(perf_list))
             it_time = time.time() - it_time
-            print(i,err,mse,wsq,perf,vperf,tperf,it_time)
-            plt.plot(x,perf_list,'r',x, vperf_list,'b',x, tperf_list,'g')
+            print(i,err,mse,wsq,perf,vperf,it_time)
+            plt.plot(x,perf_list,'r',x, vperf_list,'b')
             plt.pause(0.05)
 
     mse = np.sum((tn - X[-1])**2)/ndata
@@ -305,6 +308,7 @@ if __name__ == "__main__":
     rate=0.02
     
     # Size of each hidden layer
+    # Good performance at 150,75,25
     layersizes = np.array([150,75,25])
     
     try:
@@ -312,14 +316,21 @@ if __name__ == "__main__":
         (tdata,tt) = pickle.load(open("testing.dat","rb"))
         (vdata,vt) = pickle.load(open("validation.dat","rb"))
     except:
-        data,t,tdata,tt,vdata,vt = read_data_people('faces',0.2,0.2)
+        data_sg,t_sg,tdata_sg,tt_sg,vdata_sg,vt_sg = read_data_people('faces',0.1,0.1, True)
+        data,t,tdata,tt,vdata,vt = read_data_people('faces',0.1,0.1, False)
 
     # data,t = example_data2()
     # tdata,tt = example_data2()
     # vdata,vt = example_data2()
 
+    data = np.concatenate([data,data_sg],axis=1)
+    t = np.concatenate([t, t_sg])
+    tdata = np.concatenate([tdata,tdata_sg],axis=1)
+    tt = np.concatenate([tt, tt_sg])
+    vdata = np.concatenate([vdata,vdata_sg],axis=1)
+    vt = np.concatenate([vt, vt_sg])
     
-    W,B,Xi,mse = train_net(data,t,vdata,vt,tdata,tt,layersizes,rate,lam,niter)
+    W,B,Xi,mse = train_net(data,t,vdata,vt,layersizes,rate,lam,niter)
 
     X = use_net(tdata,W,B)
 
