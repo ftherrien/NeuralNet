@@ -162,7 +162,7 @@ def calc_performance(X,t):
     for i in range(len(t)):
         if np.argmax(X[:,i]) == t[i]:
             p += 1
-    return p/len(t) 
+    return float(p)/len(t) 
 
 def example_data2():
     """ Generates radom data of the right format, for troubleshooting """
@@ -313,7 +313,7 @@ def display_data(n,data,t,l,w):
 if __name__ == "__main__":
 
     # Number of iterations
-    niter = 3000
+    niter = 4000
 
     # Regularization
     lam = 0.005
